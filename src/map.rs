@@ -1,9 +1,13 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
+use rayon::prelude::*;
 
 const MAP_WIDTH: usize = 50;
 const MAP_HEIGHT: usize = 50;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Tile {
     Ground,
     Tree,
@@ -11,12 +15,15 @@ pub enum Tile {
 }
 
 pub struct Map {
-    tiles: [Tile; MAP_WIDTH * MAP_HEIGHT],
+    current_state: u64,
+    states: HashMap<u64, Vec<Tile>>,
+    states_transforms: HashMap<u64, u64>,
+    largest_state: u64,
 }
 
 impl Map {
     pub fn from_str(input: &str) -> Self {
-        let mut tiles = [Tile::Ground; MAP_WIDTH * MAP_HEIGHT];
+        let mut tiles = Vec::with_capacity(MAP_WIDTH * MAP_HEIGHT);
         for (y, line) in input.lines().enumerate() {
             for (x, c) in line.chars().enumerate() {
                 let tile = match c {
@@ -25,18 +32,31 @@ impl Map {
                     '#' => Tile::Lumberyard,
                     _ => panic!("Unknown tile type: {}", c),
                 };
-                tiles[y * MAP_WIDTH + x] = tile;
+                tiles.push(tile);
             }
         }
-        Self { tiles }
+
+        let mut states = HashMap::new();
+        states.insert(0, tiles);
+
+        Self { current_state: 0, states, states_transforms: HashMap::new(), largest_state: 0 }
     }
 
     pub fn step(&mut self) {
-        let mut new_tiles = [Tile::Ground; MAP_WIDTH * MAP_HEIGHT];
-        for y in 0..MAP_HEIGHT {
-            for x in 0..MAP_WIDTH {
-                let tile = self.get_tile(x, y);
-                let new_tile = match tile {
+        if self.states_transforms.contains_key(&self.current_state) {
+            let transform = self.states_transforms.get(&self.current_state).unwrap();
+            self.current_state = *transform;
+            return;
+        }
+
+        let current_tiles = self.states.get(&self.current_state).unwrap();
+        let new_tiles = current_tiles
+            .iter()
+            .enumerate()
+            .map(|(index, tile)| {
+                let x = index % MAP_WIDTH;
+                let y = index / MAP_WIDTH;
+                match tile {
                     Tile::Ground => {
                         let (adjacent_trees, _) =
                             self.count_adjacent_tiles(x, y);
@@ -63,11 +83,23 @@ impl Map {
                             Tile::Ground
                         }
                     }
-                };
-                new_tiles[y * MAP_WIDTH + x] = new_tile;
-            }
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let existing_state = self.states
+            .iter()
+            .find(|(state_num, state)| state == &&new_tiles);
+        if let Some((state_num, _)) = existing_state {
+            self.states_transforms.insert(self.current_state, *state_num);
+            self.current_state = *state_num;
+            return;
         }
-        self.tiles = new_tiles;
+
+        self.largest_state += 1;
+        self.states.insert(self.largest_state, new_tiles.clone());
+        self.states_transforms.insert(self.current_state, self.largest_state);
+        self.current_state = self.largest_state;
     }
 
     fn count_adjacent_tiles(&self, x: usize, y: usize) -> (usize, usize) {
@@ -121,11 +153,14 @@ impl Map {
     }
 
     fn get_tile(&self, x: usize, y: usize) -> Tile {
-        self.tiles[y * MAP_WIDTH + x]
+        let index = y * MAP_WIDTH + x;
+        let tiles = self.states.get(&self.current_state).unwrap();
+        tiles[index]
     }
 
     pub fn count_tiles(&self, tile: Tile) -> usize {
-        self.tiles.iter().filter(|&&t| t == tile).count()
+        let tiles = self.states.get(&self.current_state).unwrap();
+        tiles.iter().filter(|t| **t == tile).count()
     }
 }
 
