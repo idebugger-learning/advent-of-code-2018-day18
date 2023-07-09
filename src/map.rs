@@ -3,7 +3,7 @@ use std::fmt::Display;
 const MAP_WIDTH: usize = 50;
 const MAP_HEIGHT: usize = 50;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Tile {
     Ground,
     Tree,
@@ -31,7 +31,7 @@ impl Map {
         Self { tiles }
     }
 
-    pub fn step(&self) -> Self {
+    pub fn step(&mut self) {
         let mut new_tiles = [Tile::Ground; MAP_WIDTH * MAP_HEIGHT];
         for y in 0..MAP_HEIGHT {
             for x in 0..MAP_WIDTH {
@@ -66,25 +66,51 @@ impl Map {
                 new_tiles[y * MAP_WIDTH + x] = new_tile;
             }
         }
-        Self { tiles: new_tiles }
+        self.tiles = new_tiles;
     }
 
     fn count_adjacent_tiles(&self, x: usize, y: usize, target_tile: Tile) -> usize {
         let mut count = 0;
-        for dy in -1..=1 {
-            for dx in -1..=1 {
-                if dx == 0 && dy == 0 {
-                    continue;
-                }
-                let x = x as isize + dx;
-                let y = y as isize + dy;
-                if x < 0 || x >= MAP_WIDTH as isize || y < 0 || y >= MAP_HEIGHT as isize {
-                    continue;
-                }
-                let tile = self.get_tile(x as usize, y as usize);
-                if tile == target_tile {
-                    count += 1;
-                }
+
+        let mut adjacent_tiles = [(0, 0); 8];
+        let mut num = 0;
+        if x > 0 {
+            adjacent_tiles[num] = (x - 1, y);
+            num += 1;
+            if y > 0 {
+                adjacent_tiles[num] = (x - 1, y - 1);
+                num += 1;
+            }
+            if y < MAP_HEIGHT - 1 {
+                adjacent_tiles[num] = (x - 1, y + 1);
+                num += 1;
+            }
+        }
+        if x < MAP_WIDTH - 1 {
+            adjacent_tiles[num] = (x + 1, y);
+            num += 1;
+            if y > 0 {
+                adjacent_tiles[num] = (x + 1, y - 1);
+                num += 1;
+            }
+            if y < MAP_HEIGHT - 1 {
+                adjacent_tiles[num] = (x + 1, y + 1);
+                num += 1;
+            }
+        }
+        if y > 0 {
+            adjacent_tiles[num] = (x, y - 1);
+            num += 1;
+        }
+        if y < MAP_HEIGHT - 1 {
+            adjacent_tiles[num] = (x, y + 1);
+            num += 1;
+        }
+
+        for (x, y) in adjacent_tiles[0..num].iter() {
+            let tile = self.get_tile(*x, *y);
+            if tile == target_tile {
+                count += 1;
             }
         }
         count
