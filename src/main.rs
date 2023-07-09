@@ -9,7 +9,14 @@ fn main() {
     let mut last_time = std::time::Instant::now();
     for step in 0..STEPS {
         if step % 100 == 0 {
-            print!("Step {}/{} ({:.4}%), about {:.2} steps per second\r", step, STEPS, step as f32 / STEPS as f32 * 100.0, 100.0 / last_time.elapsed().as_secs_f64());
+            print!(
+                "Step {}/{} ({:.4}%), about {:.2} steps/sec. Est.: {:.0} minutes\r",
+                step,
+                STEPS,
+                step as f32 / STEPS as f32 * 100.0,
+                100.0 / last_time.elapsed().as_secs_f64(),
+                (STEPS as f64 - step as f64) / (100.0 / last_time.elapsed().as_secs_f64()) / 60.0
+            );
             last_time = std::time::Instant::now();
         }
         map.step();

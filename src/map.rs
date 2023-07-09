@@ -38,7 +38,8 @@ impl Map {
                 let tile = self.get_tile(x, y);
                 let new_tile = match tile {
                     Tile::Ground => {
-                        let adjacent_trees = self.count_adjacent_tiles(x, y, Tile::Tree);
+                        let (adjacent_trees, _) =
+                            self.count_adjacent_tiles(x, y);
                         if adjacent_trees >= 3 {
                             Tile::Tree
                         } else {
@@ -46,7 +47,7 @@ impl Map {
                         }
                     }
                     Tile::Tree => {
-                        let adjacent_lumberyards = self.count_adjacent_tiles(x, y, Tile::Lumberyard);
+                        let (_, adjacent_lumberyards) = self.count_adjacent_tiles(x, y);
                         if adjacent_lumberyards >= 3 {
                             Tile::Lumberyard
                         } else {
@@ -54,8 +55,8 @@ impl Map {
                         }
                     }
                     Tile::Lumberyard => {
-                        let adjacent_lumberyards = self.count_adjacent_tiles(x, y, Tile::Lumberyard);
-                        let adjacent_trees = self.count_adjacent_tiles(x, y, Tile::Tree);
+                        let (adjacent_trees, adjacent_lumberyards) =
+                            self.count_adjacent_tiles(x, y);
                         if adjacent_lumberyards >= 1 && adjacent_trees >= 1 {
                             Tile::Lumberyard
                         } else {
@@ -69,8 +70,9 @@ impl Map {
         self.tiles = new_tiles;
     }
 
-    fn count_adjacent_tiles(&self, x: usize, y: usize, target_tile: Tile) -> usize {
-        let mut count = 0;
+    fn count_adjacent_tiles(&self, x: usize, y: usize) -> (usize, usize) {
+        let mut count_trees = 0;
+        let mut count_lumberyards = 0;
 
         let mut adjacent_tiles = [(0, 0); 8];
         let mut num = 0;
@@ -109,11 +111,13 @@ impl Map {
 
         for (x, y) in adjacent_tiles[0..num].iter() {
             let tile = self.get_tile(*x, *y);
-            if tile == target_tile {
-                count += 1;
+            match tile {
+                Tile::Tree => count_trees += 1,
+                Tile::Lumberyard => count_lumberyards += 1,
+                _ => (),
             }
         }
-        count
+        (count_trees, count_lumberyards)
     }
 
     fn get_tile(&self, x: usize, y: usize) -> Tile {
